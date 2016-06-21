@@ -10,7 +10,7 @@ Temperature and humidity sensor with a calibrated digital signal output.
 
 ## Supported Models
 
-- [DHT11](https://rap.ruff.io/devices/dht11)
+- [dht11](https://rap.ruff.io/devices/dht11)
 
 ## Installing
 
@@ -22,7 +22,7 @@ Execute following command and enter a **supported model** to install.
 rap device add <device-id>
 
 # Then enter a supported model, for example:
-# ? model: DHT11
+# ? model: dht11
 ```
 
 ## Usage
@@ -30,8 +30,23 @@ rap device add <device-id>
 Here is the basic usage of this driver.
 
 ```js
-$('#<device-id>').getTemperature(callback);
-$('#<device-id>').getHumidityRelative(callback);
+$('#<device-id>').getTemperature(function (error, temperature) {
+    if (error) {
+        console.error(error);
+        return;
+    }
+
+    console.log('temperature', temperature);
+});
+
+$('#<device-id>').getRelativeHumidity(function (error, humidity) {
+    if (error) {
+        console.error(error);
+        return;
+    }
+
+    console.log('humidity', humidity);
+});
 ```
 
 ## API References
@@ -40,13 +55,15 @@ $('#<device-id>').getHumidityRelative(callback);
 
 #### `getTemperature(callback)`
 
-Get the temperature.
-- **callback:** The callback gets two arguments (error, value) where value is the temperature.
+Get temperature in celsius degree.
 
-#### `getHumidityRelative(callback)`
+- **callback:** The callback has two arguments (error, value) where value is the temperature.
 
-Get the relative humidity.
-- **callback:** The callback gets two arguments (error, value) where value is the  relative humidity.
+#### `getRelativeHumidity(callback)`
+
+Get relative humidity in percentage (0~100).
+
+- **callback:** The callback has two arguments (error, value) where value is the  relative humidity.
 
 ## Contributing
 

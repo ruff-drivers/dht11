@@ -2,9 +2,6 @@
     "models": [
         "DHT11"
     ],
-    "boards": [
-        "ruff-mbd-v1"
-    ],
     "inputs": {
         "gpio": {
             "type": "gpio",

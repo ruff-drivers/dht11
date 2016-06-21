@@ -21,6 +21,9 @@
   "engines": {
     "ruff": "~1.2.0"
   },
+  "boards": {
+    "ruff-mbd-v1": "*"
+  },
   "scripts": {
     "install-sdk": "rvm install --local",
     "install-rap-dependencies": "rap install",

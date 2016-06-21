@@ -4,112 +4,103 @@
  */
 
 'use strict';
-var kernelModule = require('kernel-module');
+
+var async = require('ruff-async');
 var driver = require('ruff-driver');
 var fs = require('fs');
+var kernelModule = require('kernel-module');
+var util = require('util');
 
+var Queue = async.Queue;
+
+var MODE_666 = parseInt('666', 8);
 var CHUNK_SIZE = 16;
-var temperaturePath = '/sys/devices/dht11/iio:device0/in_temp_input';
-var humidityPath = '/sys/devices/dht11/iio:device0/in_humidityrelative_input';
+
+var TEMPERATURE_PATH = '/sys/devices/dht11/iio:device0/in_temp_input';
+var HUMIDITY_PATH = '/sys/devices/dht11/iio:device0/in_humidityrelative_input';
+
+var kernelModuleInstalled = false;
+
+function ensureKernelModuleInstallation() {
+    if (kernelModuleInstalled) {
+        return;
+    }
+
+    kernelModule.install('dht11');
+    kernelModuleInstalled = true;
+}
 
 module.exports = driver({
-    attach: function (inputs, context, next) {
+    attach: function (inputs, context, callback) {
         var that = this;
 
-        var mode = parseInt('666', 8);
-        kernelModule.install('dht11');
+        ensureKernelModuleInstallation();
 
-        series([
-            getTemperatureFd,
-            getHumidityFd
-        ], next);
+        this._queue = new Queue(this._readHandler);
 
-        function getTemperatureFd(callback) {
-            fs.open(temperaturePath, 'r', mode, function (error, fd) {
-                if (error) {
-                    callback(error);
-                    return;
-                }
+        async.series([
+            function (next) {
+                fs.open(TEMPERATURE_PATH, 'r', MODE_666, function (error, fd) {
+                    if (error) {
+                        next(error);
+                        return;
+                    }
 
-                that.temperatureFd = fd;
-                callback();
-            });
-        }
+                    that._temperatureFd = fd;
+                    next();
+                });
+            },
+            function (next) {
+                fs.open(HUMIDITY_PATH, 'r', MODE_666, function (error, fd) {
+                    if (error) {
+                        next(error);
+                        return;
+                    }
 
-        function getHumidityFd(callback) {
-            fs.open(humidityPath, 'r', mode, function (error, fd) {
-                if (error) {
-                    callback(error);
-                    return;
-                }
-
-                that.humidityFd = fd;
-                callback();
-            });
-        }
+                    that._humidityFd = fd;
+                    next();
+                });
+            }
+        ], callback);
     },
-
     detach: function (callback) {
-        series([
-            fs.close.bind(fs, this.temperatureFd),
-            fs.close.bind(fs, this.humidityFd)
+        async.series([
+            fs.close.bind(fs, this._temperatureFd),
+            fs.close.bind(fs, this._humidityFd)
         ], function () {
             kernelModule.remove('dht11');
             callback();
         });
     },
-
     exports: {
-        getTemperature: function (callback) {
-            readAsync(this.temperatureFd, callback);
-        },
+        _readHandler: function (fd, callback) {
+            var buffer = new Buffer(CHUNK_SIZE);
 
-        getHumidityRelative: function (callback) {
-            readAsync(this.humidityFd, callback);
+            fs.read(fd, buffer, 0, CHUNK_SIZE, 0, function (error, length) {
+                if (error) {
+                    callback(error);
+                    return;
+                }
+
+                var value = Number(buffer.toString('utf-8', 0, length)) / 1000;
+
+                if (isNaN(value)) {
+                    callback(new Error('Read results in invalid value'));
+                    return;
+                }
+
+                callback(undefined, value);
+            });
+        },
+        _read: function (fd, callback) {
+            util.assertCallback(callback);
+            this._queue.push(this, [fd], callback);
+        },
+        getTemperature: function (callback) {
+            this._read(this._temperatureFd, callback);
+        },
+        getRelativeHumidity: function (callback) {
+            this._read(this._humidityFd, callback);
         }
     }
 });
-
-function getFriendlyValue(data) {
-    // Not a number should equal to the meaning not vailad
-    if (data) {
-        var numberOfData = parseInt(data, 10);
-        if (numberOfData) {
-            return numberOfData / 1000;
-        }
-    }
-    return -1;
-}
-
-function readAsync(fd, callback) {
-    function readCallback(error, bytesRead, buffer) {
-        var value = buffer && getFriendlyValue(buffer.toString()) || -1;
-        callback(error, value);
-    }
-
-    try {
-        var buffer = new Buffer(CHUNK_SIZE);
-        fs.read(fd, buffer, 0, CHUNK_SIZE, 0, readCallback);
-    } catch (error) {
-        callback(error);
-    }
-}
-
-function series(tasks, callback) {
-    next();
-
-    function next(error) {
-        if (error) {
-            callback(error);
-            return;
-        }
-
-        var task = tasks.shift();
-
-        if (task) {
-            task(next);
-        } else {
-            callback();
-        }
-    }
-}
