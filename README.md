@@ -49,6 +49,10 @@ $('#<device-id>').getRelativeHumidity(function (error, humidity) {
 });
 ```
 
+## FAQ
+
+If you use this driver under `Ruff: 1.2.0`, you should to press the `HRESET` button to reboot the RuffOS after deploying your application.
+
 ## API References
 
 ### Methods
