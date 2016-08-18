@@ -6,7 +6,7 @@ Temperature and humidity sensor with a calibrated digital signal output.
 
 ## Supported Engines
 
-* Ruff: >=1.2.0 <1.4.0
+* Ruff: >=1.2.0 <1.5.0
 
 ## Supported Models
 
