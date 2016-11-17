@@ -78,14 +78,17 @@ module.exports = driver({
 
             fs.read(fd, buffer, 0, CHUNK_SIZE, 0, function (error, length) {
                 if (error) {
-                    callback(error);
+                    callback(
+                        error.message === 'ETIMEDOUT: connection timed out' ||
+                        error.message === 'EIO: i/o error' ? new Error('Read failed, please try again') : error
+                    );
                     return;
                 }
 
                 var value = Number(buffer.toString('utf-8', 0, length)) / 1000;
 
                 if (isNaN(value)) {
-                    callback(new Error('Read results in invalid value'));
+                    callback(new Error('Read results is invalid value'));
                     return;
                 }
 
